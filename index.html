@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Pakistan's Rivers, Dams and Barrages (Management Information System)</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet-svg-shape-markers.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="data/ProvinceofPakistan_2.js"></script>
+        <script src="data/SutlejRiver_3.js"></script>
+        <script src="data/JhelumRiver_4.js"></script>
+        <script src="data/RaviRiver_5.js"></script>
+        <script src="data/ChenabRiver_6.js"></script>
+        <script src="data/Indus_River_7.js"></script>
+        <script src="data/Dams_8.js"></script>
+        <script src="data/Barrages_9.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        })
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Pakistan\'s Rivers, Dams and Barrages (Management Information System)</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'topright'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+
+                abstract.show();
+                return this._div;
+            };
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = 'Data is Collected and Processed By:<br />Sheikh Inam Ul Haq, <br />Computer Programmer /GIS Exapert<br />Quetta Water & Sanitation Authority.';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            if (bounds_group.getLayers().length) {
+                map.fitBounds(bounds_group.getBounds());
+            }
+        }
+        map.createPane('pane_GoogleTerrain_0');
+        map.getPane('pane_GoogleTerrain_0').style.zIndex = 400;
+        var layer_GoogleTerrain_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleTerrain_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleTerrain_0;
+        map.addLayer(layer_GoogleTerrain_0);
+        map.createPane('pane_GoogleHybrid_1');
+        map.getPane('pane_GoogleHybrid_1').style.zIndex = 401;
+        var layer_GoogleHybrid_1 = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleHybrid_1',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleHybrid_1;
+        map.addLayer(layer_GoogleHybrid_1);
+        function pop_ProvinceofPakistan_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Shape_Leng'] !== null ? autolinker.link(String(feature.properties['Shape_Leng']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Shape_Area'] !== null ? autolinker.link(String(feature.properties['Shape_Area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">ADM1_EN</th>\
+                        <td>' + (feature.properties['ADM1_EN'] !== null ? autolinker.link(String(feature.properties['ADM1_EN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM1_PCODE'] !== null ? autolinker.link(String(feature.properties['ADM1_PCODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM1_REF'] !== null ? autolinker.link(String(feature.properties['ADM1_REF']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM1ALT1EN'] !== null ? autolinker.link(String(feature.properties['ADM1ALT1EN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM1ALT2EN'] !== null ? autolinker.link(String(feature.properties['ADM1ALT2EN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_EN'] !== null ? autolinker.link(String(feature.properties['ADM0_EN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_PCODE'] !== null ? autolinker.link(String(feature.properties['ADM0_PCODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['date'] !== null ? autolinker.link(String(feature.properties['date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['validOn'] !== null ? autolinker.link(String(feature.properties['validOn']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['validTo'] !== null ? autolinker.link(String(feature.properties['validTo']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ProvinceofPakistan_2_0() {
+            return {
+                pane: 'pane_ProvinceofPakistan_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(51,160,44,0.48627450980392156)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_ProvinceofPakistan_2');
+        map.getPane('pane_ProvinceofPakistan_2').style.zIndex = 402;
+        map.getPane('pane_ProvinceofPakistan_2').style['mix-blend-mode'] = 'normal';
+        var layer_ProvinceofPakistan_2 = new L.geoJson(json_ProvinceofPakistan_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ProvinceofPakistan_2',
+            layerName: 'layer_ProvinceofPakistan_2',
+            pane: 'pane_ProvinceofPakistan_2',
+            onEachFeature: pop_ProvinceofPakistan_2,
+            style: style_ProvinceofPakistan_2_0,
+        });
+        bounds_group.addLayer(layer_ProvinceofPakistan_2);
+        map.addLayer(layer_ProvinceofPakistan_2);
+        function pop_SutlejRiver_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">T.Length</th>\
+                        <td>' + (feature.properties['T.Length'] !== null ? autolinker.link(String(feature.properties['T.Length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_SutlejRiver_3_0() {
+            return {
+                pane: 'pane_SutlejRiver_3',
+                opacity: 1,
+                color: 'rgba(114,251,219,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_SutlejRiver_3');
+        map.getPane('pane_SutlejRiver_3').style.zIndex = 403;
+        map.getPane('pane_SutlejRiver_3').style['mix-blend-mode'] = 'normal';
+        var layer_SutlejRiver_3 = new L.geoJson(json_SutlejRiver_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_SutlejRiver_3',
+            layerName: 'layer_SutlejRiver_3',
+            pane: 'pane_SutlejRiver_3',
+            onEachFeature: pop_SutlejRiver_3,
+            style: style_SutlejRiver_3_0,
+        });
+        bounds_group.addLayer(layer_SutlejRiver_3);
+        map.addLayer(layer_SutlejRiver_3);
+        function pop_JhelumRiver_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">T.Length</th>\
+                        <td>' + (feature.properties['T.Length'] !== null ? autolinker.link(String(feature.properties['T.Length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_JhelumRiver_4_0() {
+            return {
+                pane: 'pane_JhelumRiver_4',
+                opacity: 1,
+                color: 'rgba(232,25,210,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_JhelumRiver_4');
+        map.getPane('pane_JhelumRiver_4').style.zIndex = 404;
+        map.getPane('pane_JhelumRiver_4').style['mix-blend-mode'] = 'normal';
+        var layer_JhelumRiver_4 = new L.geoJson(json_JhelumRiver_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_JhelumRiver_4',
+            layerName: 'layer_JhelumRiver_4',
+            pane: 'pane_JhelumRiver_4',
+            onEachFeature: pop_JhelumRiver_4,
+            style: style_JhelumRiver_4_0,
+        });
+        bounds_group.addLayer(layer_JhelumRiver_4);
+        map.addLayer(layer_JhelumRiver_4);
+        function pop_RaviRiver_5(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">T.Length</th>\
+                        <td>' + (feature.properties['T.Length'] !== null ? autolinker.link(String(feature.properties['T.Length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RaviRiver_5_0() {
+            return {
+                pane: 'pane_RaviRiver_5',
+                opacity: 1,
+                color: 'rgba(3,92,9,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_RaviRiver_5');
+        map.getPane('pane_RaviRiver_5').style.zIndex = 405;
+        map.getPane('pane_RaviRiver_5').style['mix-blend-mode'] = 'normal';
+        var layer_RaviRiver_5 = new L.geoJson(json_RaviRiver_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RaviRiver_5',
+            layerName: 'layer_RaviRiver_5',
+            pane: 'pane_RaviRiver_5',
+            onEachFeature: pop_RaviRiver_5,
+            style: style_RaviRiver_5_0,
+        });
+        bounds_group.addLayer(layer_RaviRiver_5);
+        map.addLayer(layer_RaviRiver_5);
+        function pop_ChenabRiver_6(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">T.Length</th>\
+                        <td>' + (feature.properties['T.Length'] !== null ? autolinker.link(String(feature.properties['T.Length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ChenabRiver_6_0() {
+            return {
+                pane: 'pane_ChenabRiver_6',
+                opacity: 1,
+                color: 'rgba(246,242,9,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_ChenabRiver_6');
+        map.getPane('pane_ChenabRiver_6').style.zIndex = 406;
+        map.getPane('pane_ChenabRiver_6').style['mix-blend-mode'] = 'normal';
+        var layer_ChenabRiver_6 = new L.geoJson(json_ChenabRiver_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ChenabRiver_6',
+            layerName: 'layer_ChenabRiver_6',
+            pane: 'pane_ChenabRiver_6',
+            onEachFeature: pop_ChenabRiver_6,
+            style: style_ChenabRiver_6_0,
+        });
+        bounds_group.addLayer(layer_ChenabRiver_6);
+        map.addLayer(layer_ChenabRiver_6);
+        function pop_Indus_River_7(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">T.Length</th>\
+                        <td>' + (feature.properties['T.Length'] !== null ? autolinker.link(String(feature.properties['T.Length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Indus_River_7_0() {
+            return {
+                pane: 'pane_Indus_River_7',
+                opacity: 1,
+                color: 'rgba(16,26,220,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Indus_River_7');
+        map.getPane('pane_Indus_River_7').style.zIndex = 407;
+        map.getPane('pane_Indus_River_7').style['mix-blend-mode'] = 'normal';
+        var layer_Indus_River_7 = new L.geoJson(json_Indus_River_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Indus_River_7',
+            layerName: 'layer_Indus_River_7',
+            pane: 'pane_Indus_River_7',
+            onEachFeature: pop_Indus_River_7,
+            style: style_Indus_River_7_0,
+        });
+        bounds_group.addLayer(layer_Indus_River_7);
+        map.addLayer(layer_Indus_River_7);
+        function pop_Dams_8(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td>' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">River Name</th>\
+                        <td>' + (feature.properties['River Name'] !== null ? autolinker.link(String(feature.properties['River Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Station HT</th>\
+                        <td>' + (feature.properties['Station HT'] !== null ? autolinker.link(String(feature.properties['Station HT']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Latitude</th>\
+                        <td>' + (feature.properties['Latitude'] !== null ? autolinker.link(String(feature.properties['Latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Longitude</th>\
+                        <td>' + (feature.properties['Longitude'] !== null ? autolinker.link(String(feature.properties['Longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">In_Flow</th>\
+                        <td>' + (feature.properties['In_Flow'] !== null ? autolinker.link(String(feature.properties['In_Flow']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">IF_Trend</th>\
+                        <td>' + (feature.properties['IF_Trend'] !== null ? autolinker.link(String(feature.properties['IF_Trend']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Out_Flow</th>\
+                        <td>' + (feature.properties['Out_Flow'] !== null ? autolinker.link(String(feature.properties['Out_Flow']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">OF_Trend</th>\
+                        <td>' + (feature.properties['OF_Trend'] !== null ? autolinker.link(String(feature.properties['OF_Trend']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Status</th>\
+                        <td>' + (feature.properties['Status'] !== null ? autolinker.link(String(feature.properties['Status']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Max. Peak</th>\
+                        <td>' + (feature.properties['Max. Peak'] !== null ? autolinker.link(String(feature.properties['Max. Peak']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Date</th>\
+                        <td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Time</th>\
+                        <td>' + (feature.properties['Time'] !== null ? autolinker.link(String(feature.properties['Time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Remarks</th>\
+                        <td>' + (feature.properties['Remarks'] !== null ? autolinker.link(String(feature.properties['Remarks']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Dams_8_0() {
+            return {
+                pane: 'pane_Dams_8',
+                shape: 'diamond',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(61,128,53,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(43,239,22,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Dams_8');
+        map.getPane('pane_Dams_8').style.zIndex = 408;
+        map.getPane('pane_Dams_8').style['mix-blend-mode'] = 'normal';
+        var layer_Dams_8 = new L.geoJson(json_Dams_8, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Dams_8',
+            layerName: 'layer_Dams_8',
+            pane: 'pane_Dams_8',
+            onEachFeature: pop_Dams_8,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.shapeMarker(latlng, style_Dams_8_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_Dams_8);
+        map.addLayer(layer_Dams_8);
+        function pop_Barrages_9(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td>' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">River Name</th>\
+                        <td>' + (feature.properties['River Name'] !== null ? autolinker.link(String(feature.properties['River Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Station HT</th>\
+                        <td>' + (feature.properties['Station HT'] !== null ? autolinker.link(String(feature.properties['Station HT']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Latitude</th>\
+                        <td>' + (feature.properties['Latitude'] !== null ? autolinker.link(String(feature.properties['Latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Longitude</th>\
+                        <td>' + (feature.properties['Longitude'] !== null ? autolinker.link(String(feature.properties['Longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">In_Flow</th>\
+                        <td>' + (feature.properties['In_Flow'] !== null ? autolinker.link(String(feature.properties['In_Flow']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">IF_Trend</th>\
+                        <td>' + (feature.properties['IF_Trend'] !== null ? autolinker.link(String(feature.properties['IF_Trend']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Out_Flow</th>\
+                        <td>' + (feature.properties['Out_Flow'] !== null ? autolinker.link(String(feature.properties['Out_Flow']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">OF_Trend</th>\
+                        <td>' + (feature.properties['OF_Trend'] !== null ? autolinker.link(String(feature.properties['OF_Trend']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Status</th>\
+                        <td>' + (feature.properties['Status'] !== null ? autolinker.link(String(feature.properties['Status']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Max. Peak</th>\
+                        <td>' + (feature.properties['Max. Peak'] !== null ? autolinker.link(String(feature.properties['Max. Peak']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Date</th>\
+                        <td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Time</th>\
+                        <td>' + (feature.properties['Time'] !== null ? autolinker.link(String(feature.properties['Time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Remarks</th>\
+                        <td>' + (feature.properties['Remarks'] !== null ? autolinker.link(String(feature.properties['Remarks']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Barrages_9_0() {
+            return {
+                pane: 'pane_Barrages_9',
+                radius: 6.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(16,26,220,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Barrages_9');
+        map.getPane('pane_Barrages_9').style.zIndex = 409;
+        map.getPane('pane_Barrages_9').style['mix-blend-mode'] = 'normal';
+        var layer_Barrages_9 = new L.geoJson(json_Barrages_9, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Barrages_9',
+            layerName: 'layer_Barrages_9',
+            pane: 'pane_Barrages_9',
+            onEachFeature: pop_Barrages_9,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Barrages_9_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_Barrages_9);
+        map.addLayer(layer_Barrages_9);
+        var overlaysTree = [
+            {label: '<img src="legend/Barrages_9.png" /> Barrages', layer: layer_Barrages_9},
+            {label: '<img src="legend/Dams_8.png" /> Dams', layer: layer_Dams_8},
+            {label: '<img src="legend/Indus_River_7.png" /> Indus_River', layer: layer_Indus_River_7},
+            {label: '<img src="legend/ChenabRiver_6.png" /> Chenab River', layer: layer_ChenabRiver_6},
+            {label: '<img src="legend/RaviRiver_5.png" /> Ravi River', layer: layer_RaviRiver_5},
+            {label: '<img src="legend/JhelumRiver_4.png" /> Jhelum River', layer: layer_JhelumRiver_4},
+            {label: '<img src="legend/SutlejRiver_3.png" /> Sutlej River', layer: layer_SutlejRiver_3},
+            {label: '<img src="legend/ProvinceofPakistan_2.png" /> Province of Pakistan', layer: layer_ProvinceofPakistan_2},
+            {label: "Google Hybrid", layer: layer_GoogleHybrid_1},
+            {label: "Google Terrain", layer: layer_GoogleTerrain_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
+        setBounds();
+        var i = 0;
+        layer_ProvinceofPakistan_2.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['ADM1_EN'] !== null?String('<div style="color: #323232; font-size: 10pt; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['ADM1_EN']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_ProvinceofPakistan_2'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        resetLabels([layer_ProvinceofPakistan_2]);
+        map.on("zoomend", function(){
+            resetLabels([layer_ProvinceofPakistan_2]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_ProvinceofPakistan_2]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_ProvinceofPakistan_2]);
+        });
+        </script>
+    </body>
+</html>
